@@ -10,3 +10,5 @@ require (
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
 	golang.org/x/sys v0.0.0-20181022134430-8a28ead16f52 // indirect
 )
+
+go 1.13

@@ -135,27 +135,28 @@ func mailProcessor(req *Request) error {
 		return req.TextProto.PrintfLine("%d %s", 501, "MAIL command contained invalid address")
 	}
 
-	// extraxt the from email address
-	from := emailRegExp.FindStringSubmatch(req.Line[1][i+1:])[1]
-	fromParts := strings.SplitN(from, "@", 2)
+	rawFrom := strings.TrimSpace(req.Line[1][i+1:])
 
-	req.From = from
-	ip, _, _ := net.SplitHostPort(req.RemoteAddr)
+	if rawFrom != "" {
+		// extraxt the from email address
+		from := emailRegExp.FindStringSubmatch(rawFrom)[1]
+		fromParts := strings.SplitN(from, "@", 2)
 
-	// check the spf result
-	req.SPFResult, _, _ = spf.CheckHost(net.ParseIP(ip), fromParts[1], from)
+		req.From = from
+		ip, _, _ := net.SplitHostPort(req.RemoteAddr)
 
-	// check the mx records of the from hostname
-	mxs, err := net.LookupMX(fromParts[1])
-	req.Mailable = (err == nil) && len(mxs) > 0
+		// check the spf result
+		req.SPFResult, _, _ = spf.CheckHost(net.ParseIP(ip), fromParts[1], from)
+
+		// check the mx records of the from hostname
+		mxs, err := net.LookupMX(fromParts[1])
+		req.Mailable = (err == nil) && len(mxs) > 0
+	}
 
 	return req.TextProto.PrintfLine("%d %s", 250, "Ok")
 }
 
 func rcptProcessor(req *Request) error {
-	if req.From == "" {
-		return req.TextProto.PrintfLine("%d %s", 503, "Bad sequence of commands")
-	}
 	if len(req.Line) < 2 {
 		return req.TextProto.PrintfLine("%d %s", 501, "Not enough arguments")
 	}
@@ -177,7 +178,7 @@ func rcptProcessor(req *Request) error {
 }
 
 func dataProcessor(req *Request) error {
-	if req.To == nil || req.From == "" || len(req.To) == 0 {
+	if req.To == nil || len(req.To) == 0 {
 		return req.TextProto.PrintfLine("%d %s", 503, "Bad sequence of commands")
 	}
 	err := req.TextProto.PrintfLine("%d %s", 354, "End data with <CR><LF>.<CR><LF>")
